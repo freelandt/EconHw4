@@ -9,15 +9,20 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE, message = F, comment = NA, warning = F)
 ```
 
-```{r}
+```{r, include = F}
 library(tidyverse)
 library(stargazer)
 library(pander)
 library(lubridate)
 library(Quandl)
+library(readxl)
+library(car)
+library(lmtest)
 ```
 
 ```{r, data}
+df <- read_excel("~/R/Econometrics/Tables/Table2_8.xls", skip=2)
+
 data1 <- read.table("~/R/Stats345/EconHw4/EconData.txt")
 
 DPI <- Quandl("FRED/A067RC1A027NBEA")
@@ -62,60 +67,109 @@ pander(summary(model2))
 
 ###(A)
 
-###(B)
+In our table below we show the differences between the two models. The only slight indication that the model with log(Savings) as the response has slightly higher adjusted R-squared, which might point to it being the correct model. When examinging the residual plots, neither of them looked particularly better than the other so I did not include them in this report. 
 
-###(C)
+In the second code chunk below we ran the MWD test. We created a new Z variable as per the instructions of the MWD test and ran a regression including the new Z variable. The Z variable does not appear to be significant which is an indicator that the true model is linear. 
 
 ```{r}
 model.book <- lm(Savings~Period*DPI, data = Q2data)
 model.q <- lm(log(Savings)~Period*DPI, data = Q2data)
-summary(model.book)
+stargazer(model.book, model.q, type="text")
+```
+
+```{r}
+#MWD Test
+Q2data$z <- log(440 + 162*Q2data$Period -.011 * Q2data$DPI + .0177*(Q2data$DPI * Q2data$Period)) - (6.12 + .034*Q2data$Period -.0000343*Q2data$DPI + .0000386*(Q2data$Period * Q2data$DPI))
+model.test <- lm(Savings~Period*DPI + z, data = Q2data)
+stargazer(model.test, type="text")
+#the z estimate is not significant, therefore 
+#We do not reject hypo that the true model is 
+#linear. 
+```
+
+
+###(B)
+
+We can interpret the .336 estimate of the coefficient on the dummy variable in this model as the late period (2008-2017) has a 33.6% increase in intercept from the earlier period. 
+
+```{r, results ='hide'}
 summary(model.q)
 ```
 
-(9.5.1) The source of difference, if any, can be pinned down by pooling all the observations (26 in
-all) and running just one multiple regression as shown below:10
-Yt = α1 + α2Dt + β1Xt + β2(Dt Xt ) + ut (9.5.1)
-where Y = savings
-X = income
-t = time
-D = 1 for observations in 1982–1995
-= 0, otherwise (i.e., for observations in 1970–1981)
+###(C)
 
-Do textbook question 9.28 using the Savings and Disposable Income data from FRED (St. Louis Federal
-Reserve), but comparing the time period of 1998-2007 vs. 2008-2017. Additionally, use the MWD test from
-CH 8 as part of your answer to part a.
+It does not appear that the residual standard errors are statistically difference, .179 and .206, with 8 degrees of freedom. THis implies that we could use the Chow test to pool the data together, however we saw that we can also do this with using a dummy variable.
 
+```{r}
+model.old <- lm(log(Savings)~DPI, data = Q2data[11:20,])
+model.new <- lm(log(Savings)~DPI, data = Q2data[1:10,])
 
-9.28 Refer to the U.S. savings–income regression discussed in the chapter. As an
-alternative to Eq. (9.5.1), consider the following model:
-ln Yt = β1 + β2Dt + β3Xt + β4(Dt Xt ) + ut
-where Y is savings and X is income.
-a. Estimate the preceding model and compare the results with those given in
-Eq. (9.5.4). Which is a better model?
-b. How would you interpret the dummy coefficient in this model?
-c. As we will see in the chapter on heteroscedasticity, very often a log transformation
-of the dependent variable reduces heteroscedasticity in the data. See if this
-is the case in the present example by running the regression of log of Y on X for
-the two periods and see if the estimated error variances in the two periods are statistically
-the same. If they are, the Chow test can be used to pool the data in the
-manner indicated in the chapter.
+stargazer(model.old, model.new, type = "text")
+```
 
 ##3
 
-11.16. Food expenditure in India. In Table 2.8 we have given data on expenditure on food
-and total expenditure for 55 families in India.
+###(A)
+
 a. Regress expenditure on food on total expenditure, and examine the residuals
 obtained from this regression.
+
+Based on the plot below, there appears to be a lot of variablilty in our residuals. There also might be heteroscedasticity, but since we are only plotting against the index we can't tell that for sure. 
+
+```{r}
+india.lm <- lm(FOODEXP~TOTALEXP, data = df)
+plot(resid(india.lm), xlab = "Index", ylab = "Residuals", main = "Residual Plot")
+```
+
+###(B)
+
 b. Plot the residuals obtained in (a) against total expenditure and see if you observe
 any systematic pattern.
+
+Now that we are plotting against the total expenditure we can see that there definitely is some heteroscedaticity in our data. As Total expenditure increases the residuals spread out more, which is a prime indicator of heteroscedaticity.
+
+```{r}
+plot(resid(india.lm)~df$TOTALEXP, xlab = "Total Expenditure", ylab = "Residuals", main = "Residuals against Total Expenditure")
+```
+
+###(C)
 
 c. If the plot in (b) suggests that there is heteroscedasticity, apply the Park, Glejser,
 and White tests to find out if the impression of heteroscedasticity observed in (b)
 is supported by these tests.
+
+All three of the tests provided evidence that there is heteroscedasticity present in our model/data. This means that the three tests support the impression of heteroscedasticity that we observed in part (b).
+
+```{r, results = 'hide'}
+#Park Test
+summary(india.lm)
+df$u <- df$FOODEXP - 94.2 + .437*df$TOTALEXP 
+park.lm <- lm(log(u^2)~log(TOTALEXP), data = df)
+summary(park.lm) #coefficient on Log(X) is significant
+#indicates heteroscedasticity.
+
+#Glejser Test
+glejser.lm <- lm(abs(u)~TOTALEXP, data = df)
+summary(glejser.lm) #COeff is significant again
+#indicates heteroscedasticity
+
+#White = bptest
+bptest(india.lm) #Small p-value again
+#indicates heteroscedasticity
+```
+
+###(D)
+
 d. Obtain White’s heteroscedasticity-consistent standard errors and compare those
 with the OLS standard errors. Decide if it is worth correcting for heteroscedasticity
 in this example.
+
+Suprisingly the standard errors for White's heteroscedasticity-consistent standard errors are not that different from the ones we get when not accounting for heteroscedasticty. In the table below you can see the values side by side and can tell that the changes in standard error are very small and don't change the significance in any of our terms so may not want to worry about correcting for the heteroscedasticity since it doesn't seem to be changing anything significantly. 
+
+```{r}
+#coeftest(india.lm, hccm(india.lm))
+stargazer(india.lm, coeftest(india.lm, hccm(india.lm)), type="text")
+```
 
 ##4
 
@@ -123,6 +177,8 @@ in this example.
 on the logarithm of total expenditure. If you observe heteroscedasticity in the linear
 model of Exercise 11.16 but not in the log–linear model, what conclusion do you
 draw? Show all the necessary calculations.
+
+
 
 ##5
 
