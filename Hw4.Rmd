@@ -1,0 +1,129 @@
+---
+title: "EconHw4"
+author: "Trevor Freeland"
+date: "May 6, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, comment = NA, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(stargazer)
+library(pander)
+library(lubridate)
+library(Quandl)
+```
+
+```{r, data}
+data1 <- read.table("~/R/Stats345/EconHw4/EconData.txt")
+
+DPI <- Quandl("FRED/A067RC1A027NBEA")
+names(DPI) <- c("Date", "DPI")
+Sav <- Quandl("FRED/A071RC1A027NBEA")
+names(Sav) <- c("Date", "Savings")
+Q2data <- left_join(DPI, Sav)
+Q2data$Year <- year(Q2data$Date)
+Q2data$Period <- ifelse(Q2data$Year <= 2007, 0, 1)
+Q2data <- Q2data %>% filter(Year >= 1998)
+```
+
+##1
+
+```{r, results = 'hide'}
+#Confirm I get the same results as them
+model1 <- lm(V9~V6+V2, data = data1)
+summary(model1) # I did
+```
+
+In order to modify the model in 9.3.1 to find out if there was an interaction between gender and region I would need to add in the gender variable and make sure to include an interaction between gender and region. In R this means I would have a multiplication sign in between the two variables. 
+
+9.3.1: V9 = 8.8148 + 1.0997V6 − 1.6729V2
+
+New model: V9 = 9.74 + 1.13V6 − 1.36V2  -2.00V5  -.80(V2:V5)
+
+V9 = hourly wage ($)
+V6= married status; 1 = married, 0 = otherwise
+V2 = region of residence; 1 = South, 0 = otherwise
+V5 = gender (1 = Female, 0 = Male)
+
+Our intercept has increased in the new model. From our output below we can see that the gender variable is definitely significant however the interaction between gender and region does not appear to be significant. Our estimates for our other variables in the model has changed as well. In our new model married status seems to have a slightly larger effect than in the original model, and region appears to have slightly less of an effect in our new model. 
+
+See table below for summary of model. 
+
+```{r}
+model2 <- lm(V9~V6+V2*V5, data = data1)
+pander(summary(model2))
+```
+
+##2
+
+###(A)
+
+###(B)
+
+###(C)
+
+```{r}
+model.book <- lm(Savings~Period*DPI, data = Q2data)
+model.q <- lm(log(Savings)~Period*DPI, data = Q2data)
+summary(model.book)
+summary(model.q)
+```
+
+(9.5.1) The source of difference, if any, can be pinned down by pooling all the observations (26 in
+all) and running just one multiple regression as shown below:10
+Yt = α1 + α2Dt + β1Xt + β2(Dt Xt ) + ut (9.5.1)
+where Y = savings
+X = income
+t = time
+D = 1 for observations in 1982–1995
+= 0, otherwise (i.e., for observations in 1970–1981)
+
+Do textbook question 9.28 using the Savings and Disposable Income data from FRED (St. Louis Federal
+Reserve), but comparing the time period of 1998-2007 vs. 2008-2017. Additionally, use the MWD test from
+CH 8 as part of your answer to part a.
+
+
+9.28 Refer to the U.S. savings–income regression discussed in the chapter. As an
+alternative to Eq. (9.5.1), consider the following model:
+ln Yt = β1 + β2Dt + β3Xt + β4(Dt Xt ) + ut
+where Y is savings and X is income.
+a. Estimate the preceding model and compare the results with those given in
+Eq. (9.5.4). Which is a better model?
+b. How would you interpret the dummy coefficient in this model?
+c. As we will see in the chapter on heteroscedasticity, very often a log transformation
+of the dependent variable reduces heteroscedasticity in the data. See if this
+is the case in the present example by running the regression of log of Y on X for
+the two periods and see if the estimated error variances in the two periods are statistically
+the same. If they are, the Chow test can be used to pool the data in the
+manner indicated in the chapter.
+
+##3
+
+11.16. Food expenditure in India. In Table 2.8 we have given data on expenditure on food
+and total expenditure for 55 families in India.
+a. Regress expenditure on food on total expenditure, and examine the residuals
+obtained from this regression.
+b. Plot the residuals obtained in (a) against total expenditure and see if you observe
+any systematic pattern.
+
+c. If the plot in (b) suggests that there is heteroscedasticity, apply the Park, Glejser,
+and White tests to find out if the impression of heteroscedasticity observed in (b)
+is supported by these tests.
+d. Obtain White’s heteroscedasticity-consistent standard errors and compare those
+with the OLS standard errors. Decide if it is worth correcting for heteroscedasticity
+in this example.
+
+##4
+
+11.17. Repeat Exercise 11.16, but this time regress the logarithm of expenditure on food
+on the logarithm of total expenditure. If you observe heteroscedasticity in the linear
+model of Exercise 11.16 but not in the log–linear model, what conclusion do you
+draw? Show all the necessary calculations.
+
+##5
+
+
